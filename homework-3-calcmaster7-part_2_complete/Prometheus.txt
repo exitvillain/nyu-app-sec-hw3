@@ -1,0 +1,39 @@
+Part 2 
+In part 2.a, I deleted a few lines of code that was dealing with passwords on line 50. I kept it commented out. We need to take this out because collecting data to ensure good password use ended up still using the password. 
+
+For part 2.b, I added a counter called e_counters. This will allow prometheus to keep track of 404 errors.  Every time a 404 was hit in the code, I inserted a graphs['e_counters'].inc()
+I tested this out by going to the prometheus web interface and clicking on graph view for my e counter.  On the website, I inputed a localhost:7080/buy/323235290 or any old big number to trigger a 404.  The prometheus graph view for my counter will show a 1.  Also, when you go to Targets on the prometheus interface, you see that two endpoints are up: http://localhost:9090/metrics and 	http://proxy-service:8080/metrics.   
+
+We need to edit scrape configs. This tells us what sites we are going to try to get metrics from. By default, it lists local host 9090 which means that prometheus will be connecting to itself and asking itself how it is doing. We can delete this if we want. But we also need to add the proxy service which is listening on port 8080.  So this will allow prometheus to access our gift card site. The job name creates a prometheus job that periodically tries to fetch from the targets we list.
+
+
+Exact Commands I used to set up Promethesus:
+
+So after making changes to views.py for part 1 and 2, I had to rebuild. So just to be on the safe side I ran a minikube delete to start up everything, and re ran the exact same commands I listed in part 1 secrets.txt   So you will need to run those first before you run the following. Note I used the package manager helm to make working with prometheus easier.
+
+brew install helm
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+helm repo add stable https://charts.helm.sh/stable
+
+helm repo update
+
+helm install prometheus prometheus-community/prometheus
+
+kubectl port-forward service/prometheus-server 9090:80  (the first port, 9090 is just a random open port on our machine, and the second port 80, corresponds with the prometheus-server. This will allow our local machine to be able to access the prometheus web ui by visiting localhost:9090.  This is similar to how we are viewing the card website by doing localhost:7080)
+
+kubectl edit configmaps prometheus-server
+
+ **NOTE:  the Kubectl edit configmaps does a few things under the hood 
+1. kubectl get configmap foo -o yaml > /tmp/configmap_foo.yaml to dump the configmap into a temporary file
+2. Opening your editor to edit that file
+3. Once you exit the editor, running kubectl apply -f /tmp/configmap_foo.yaml to tell kubernetes about the modified configmap (edited) 
+
+So the command opened cofigmap_prometheus-server.yaml  in vim and all I had to do was add the one line -proxy-service:8080 under scrape_configs        
+
+Then go to localhost:9090  and have fun using the prometheus web interface to monitor the python counters that are listed in views.py!
+
+So the prompt said to include all yaml files needed. I think that just means to edit the file using Kubectl edit configmaps prometheus-server , but just in case I included a copy of the config file in the file configmaps_promethesus-serverCOPPIEDHERE.yaml , in my assignment 3 home directory. 
+
+I can also go to http://localhost:9090/config to look at this configuration and notice that my edit to add the proxy-service:8080 is there! 
